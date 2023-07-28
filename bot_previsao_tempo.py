@@ -2,107 +2,57 @@ import requests
 from bs4 import BeautifulSoup
 import discord
 
-
 def make_request():
-  
-  url = "https://www.cpa.unicamp.br/cepagri/previsao"
+    url = "https://www.cpa.unicamp.br/cepagri/previsao"
 
-  try:
-    # Faz a solicitação GET
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
+        response.raise_for_status()
 
-    # Verifica se a solicitação foi bem-sucedida (status code 200)
-    if response.status_code == 200:
+        soup = BeautifulSoup(response.text, "html.parser")
+        hoje_div = soup.find("div", class_="hoje active") or soup.find("div", class_="amanha active") or soup.find("div", class_="depois active")
 
-      # Obtemos o conteúdo da página
-      page = response.text
-
-      # Utilizando o BeautifulSoup para analisar o HTML
-      soup = BeautifulSoup(page, "html.parser")
-       
-      try:
-        hoje_div = soup.find("div", class_="hoje active")
-        
-        if hoje_div is None:
-            print('Class = hoje não está active')
-            try:
-                hoje_div = soup.find("div", class_="amanha active")
-                
-                if hoje_div is None:
-                    print('Class = amanha não está active')
-                    try:
-                        hoje_div = soup.find("div", class_="depois active")
-                    except:
-                        print('Class = depois não está active')
-            except:
-               print('Verificações do dia terminadas')
+        if hoje_div:
+            lista_elementos = hoje_div.text.strip().split()
+            data_hoje = " ".join(lista_elementos[0:2])
+            minima, maxima, previsao = lista_elementos[3], lista_elementos[2], " ".join(lista_elementos[4:])
+            return f"{data_hoje}\nMáxima: **{maxima}**\nMínima: **{minima}**\n{previsao}"
 
         else:
-            hoje_div = 'Erro, não há dias disponíveis'
             raise Exception("Erro, não há dias disponíveis")
 
-      except Exception as error:
-            print(f'Ocorreu um erro: Erro, não há dias disponíveis {error}')
+    except requests.exceptions.RequestException as error:
+        print(f"Erro na solicitação: {error}")
 
-      # Extrai o conteúdo dentro da div "hoje active"
-      conteudo_hoje = hoje_div.text.strip()
+    except Exception as error:
+        print(f"Ocorreu um erro: {error}")
 
-      # Remove os espaços em branco e a formatação
-      conteudo_hoje = conteudo_hoje.replace('\n', '').replace('\r', '').replace('\t', '').strip()
-
-      # Separa cada elemento em uma lista
-      lista_elementos = conteudo_hoje.split()
-
-      # data de hoje
-      data_hoje = " ".join(lista_elementos[0:2])
-
-      # Previsão do tempo
-      previsao = " ".join(lista_elementos[4:])
-
-      minima = " ".join(lista_elementos[3])
-      minima = minima.replace(' ', '')
-
-      maxima = " ".join(lista_elementos[2])
-      maxima = maxima.replace(' ', '')
-
-      previsao_total = data_hoje + '\n' + 'Máxima: ' + f'**{maxima}**' + '\n' + 'Mínima: ' + f'**{minima}**' + '\n' + previsao
-      # Pritnado Previsão do tempo
-
-      return str(previsao_total)
-
-    else:
-      print(f"Erro na solicitação. Status code: {response.status_code}")
-
-  except requests.exceptions.RequestException as error:
-    return print(f"Erro na solicitação: {error}")
-
+    return None
 
 # Substitua 'seu_token_aqui' pelo token real do seu bot
-TOKEN = 'seu token vai aqui'
+TOKEN = 'Coloque o token aqui'
 
 intents = discord.Intents.default()
 intents.message_content = True
 client = discord.Client(intents=intents)
 
-
 @client.event
 async def on_ready():
-  print(f'{client.user} está online!')
-
+    print(f'{client.user} está online!')
 
 @client.event
 async def on_message(message):
+    # Verifica se o autor da mensagem é o bot
+    if message.author == client.user:
+        return
 
-  conteudo = message.content
-  l_conteudo = conteudo.lower()
+    conteudo = message.content
+    l_conteudo = conteudo.lower()
 
-  if message.author == client.user:
-    return
-
-  if l_conteudo.startswith('!tempo'):
-    previsao_tempo = make_request()
-    await message.channel.send(
-        f'Olá, @{message.author} \nA previsão do tempo é  \n{previsao_tempo}')
-
+    if l_conteudo.startswith('!tempo'):
+        previsao_tempo = make_request()
+        nome_usuario = message.author.display_name
+        await message.channel.send(
+            f'Olá, {nome_usuario}\nA previsão do tempo é \n{previsao_tempo}')
 
 client.run(TOKEN)
