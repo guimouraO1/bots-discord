@@ -4,6 +4,7 @@ import discord
 
 
 def make_request():
+  
   url = "https://www.cpa.unicamp.br/cepagri/previsao"
 
   try:
@@ -18,17 +19,36 @@ def make_request():
 
       # Utilizando o BeautifulSoup para analisar o HTML
       soup = BeautifulSoup(page, "html.parser")
+       
+      try:
+        hoje_div = soup.find("div", class_="hoje active")
+        
+        if hoje_div is None:
+            print('Class = hoje não está active')
+            try:
+                hoje_div = soup.find("div", class_="amanha active")
+                
+                if hoje_div is None:
+                    print('Class = amanha não está active')
+                    try:
+                        hoje_div = soup.find("div", class_="depois active")
+                    except:
+                        print('Class = depois não está active')
+            except:
+               print('Verificações do dia terminadas')
 
-      # Procurar a div com a classe "hoje active" para obter o conteúdo dentro dela
-      hoje_div = soup.find("div", class_="hoje active")
+        else:
+            hoje_div = 'Erro, não há dias disponíveis'
+            raise Exception("Erro, não há dias disponíveis")
+
+      except Exception as error:
+            print(f'Ocorreu um erro: Erro, não há dias disponíveis {error}')
 
       # Extrai o conteúdo dentro da div "hoje active"
       conteudo_hoje = hoje_div.text.strip()
 
       # Remove os espaços em branco e a formatação
-      conteudo_hoje = conteudo_hoje.replace('\n',
-                                            '').replace('\r', '').replace(
-                                                '\t', '').strip()
+      conteudo_hoje = conteudo_hoje.replace('\n', '').replace('\r', '').replace('\t', '').strip()
 
       # Separa cada elemento em uma lista
       lista_elementos = conteudo_hoje.split()
@@ -57,10 +77,8 @@ def make_request():
     return print(f"Erro na solicitação: {error}")
 
 
-make_request()
-
 # Substitua 'seu_token_aqui' pelo token real do seu bot
-TOKEN = 'Coloque o token aqui'
+TOKEN = 'seu token vai aqui'
 
 intents = discord.Intents.default()
 intents.message_content = True
