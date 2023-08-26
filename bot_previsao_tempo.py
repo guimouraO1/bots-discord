@@ -2,35 +2,23 @@ import requests
 from bs4 import BeautifulSoup
 import discord
 
-def make_request():
-    url = "https://www.cpa.unicamp.br/cepagri/previsao"
+# Função para fazer a requisição HTTP e obter a previsão do tempo
+def make_request(cidade):
+    # api do site openweather
+    api_key = ''
+    city_name = cidade
+    link = f'https://api.openweathermap.org/data/2.5/weather?q={city_name}&appid={api_key}&lang=pt_br'
 
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
+    request = requests.get(link)
+    requisicao_dic = request.json()
 
-        soup = BeautifulSoup(response.text, "html.parser")
-        hoje_div = soup.find("div", class_="hoje active") or soup.find("div", class_="amanha active") or soup.find("div", class_="depois active")
+    descricao = requisicao_dic['weather'][0]['description']
+    temperatura = requisicao_dic['main']['temp'] - 273.15
+    
+    return descricao, temperatura
 
-        if hoje_div:
-            lista_elementos = hoje_div.text.strip().split()
-            data_hoje = " ".join(lista_elementos[0:2])
-            minima, maxima, previsao = lista_elementos[3], lista_elementos[2], " ".join(lista_elementos[4:])
-            return f"{data_hoje}\nMáxima: **{maxima}**\nMínima: **{minima}**\n{previsao}"
-
-        else:
-            raise Exception("Erro, não há dias disponíveis")
-
-    except requests.exceptions.RequestException as error:
-        print(f"Erro na solicitação: {error}")
-
-    except Exception as error:
-        print(f"Ocorreu um erro: {error}")
-
-    return None
-
-# Substitua 'seu_token_aqui' pelo token real do seu bot
-TOKEN = 'Coloque o token aqui'
+# Substitua 'seu_token_aqui' pelo token real do seu bot - - --  token discord
+TOKEN = ''
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -45,14 +33,21 @@ async def on_message(message):
     # Verifica se o autor da mensagem é o bot
     if message.author == client.user:
         return
-
+    
     conteudo = message.content
     l_conteudo = conteudo.lower()
 
     if l_conteudo.startswith('!tempo'):
-        previsao_tempo = make_request()
-        nome_usuario = message.author.display_name
-        await message.channel.send(
-            f'Olá, {nome_usuario}\nA previsão do tempo é \n{previsao_tempo}')
-
+        
+        conteudo = l_conteudo
+        cidade = conteudo.replace('!tempo ', '')
+        
+        try:
+            descricao, temperatura  =  make_request(cidade)
+            nome_usuario = message.author.display_name
+            await message.channel.send(f'Olá, {nome_usuario}\nA previsão do tempo da cidade {cidade} \nDescrição: {descricao}\nTemperatura: {temperatura:.2f}°C')
+        except:
+            nome_usuario = message.author.display_name
+            await message.channel.send(f'Olá, {nome_usuario}\nA previsão do tempo da cidade {cidade} não é aceita, sentimos muito :(')
+    
 client.run(TOKEN)
